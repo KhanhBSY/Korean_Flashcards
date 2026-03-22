@@ -24,16 +24,6 @@
   header h1 { font-family:'Lora',serif; font-size:1.75rem; font-weight:600; letter-spacing:-0.02em; }
   header p { font-size:0.85rem; color:var(--ink-3); margin-top:0.35rem; }
 
-  /* Chapter filter — extra row not in the reference, slotted above progress */
-  .chapter-wrap { width:min(520px,100%); display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:1.25rem; }
-  .ch-btn {
-    font-family:'DM Sans',sans-serif; font-size:0.72rem; font-weight:500;
-    padding:3px 12px; border-radius:20px; border:1px solid var(--border);
-    background:var(--surface); color:var(--ink-3); cursor:pointer; transition:all 0.15s;
-  }
-  .ch-btn:hover { border-color:var(--accent); color:var(--accent); }
-  .ch-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:500; }
-
   .progress-wrap { width:min(520px,100%); margin-bottom:1.25rem; display:flex; align-items:center; gap:12px; }
   .progress-bar { flex:1; height:3px; background:var(--border); border-radius:99px; overflow:hidden; }
   .progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width 0.3s; }
@@ -51,20 +41,11 @@
   .face-back  { transform:rotateY(180deg); justify-content:space-between; }
   .face-label { font-size:0.7rem; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-3); margin-bottom:1rem; }
 
-  /* Front face — Vietnamese prompt */
   .meaning-text { font-family:'Lora',serif; font-size:1.35rem; line-height:1.55; color:var(--ink); }
-  .chapter-tag {
-    margin-top:1rem; display:inline-block; font-size:0.68rem; font-weight:500;
-    color:var(--accent); background:var(--accent-light); padding:2px 9px; border-radius:4px;
-  }
   .flip-hint { margin-top:1.5rem; font-size:0.75rem; color:var(--ink-3); }
 
-  /* Back face — Korean answer */
-  .back-word {
-    font-family:'Lora',serif; font-size:2.4rem; font-weight:600;
-    letter-spacing:-0.01em; color:var(--ink); line-height:1.2;
-  }
-  .back-word-latin { font-size:1rem; font-weight:400; color:var(--ink-2); margin-top:0.35rem; font-style:italic; }
+  .back-word { font-family:'Lora',serif; font-size:2.4rem; font-weight:600; letter-spacing:-0.01em; color:var(--ink); line-height:1.2; }
+  .back-sub  { font-size:1rem; font-weight:400; color:var(--ink-2); margin-top:0.35rem; font-style:italic; }
   .back-example { font-family:'Lora',serif; font-style:italic; font-size:1rem; line-height:1.65; color:var(--ink-2); border-left:2px solid var(--accent); padding-left:1rem; margin-top:auto; }
   .back-example-label { font-family:'DM Sans',sans-serif; font-style:normal; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:0.5rem; display:block; }
 
@@ -83,7 +64,6 @@
   .row-btns { display:flex; gap:10px; width:min(520px,100%); margin-top:0.85rem; }
   .btn-sm { height:36px; font-size:0.75rem; padding:0 0.85rem; border-radius:8px; flex:1; }
 
-  /* Direction toggle row */
   .dir-wrap { display:flex; gap:10px; width:min(520px,100%); margin-top:0.6rem; }
   .btn-dir { height:34px; font-size:0.73rem; padding:0 0.85rem; border-radius:8px; flex:1; }
   .btn-dir.active { background:var(--accent-light); border-color:var(--accent); color:var(--accent); font-weight:500; }
@@ -107,8 +87,6 @@
   <p id="subtitle">Đang tải từ Google Sheets…</p>
 </header>
 
-<div class="chapter-wrap" id="chapterWrap" style="display:none"></div>
-
 <div id="app">
   <div class="status">
     Đang tải từ vựng…
@@ -117,10 +95,9 @@
 </div>
 
 <script>
-// Published CSV — CORS-free from GitHub Pages (https origin)
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRVaDIfMZP7kILdXbVsmf7pOxD3Z-6gtQCX7-LJQP7aZF6QjEhIWsrnMOlNTiEBxPRgR2ZA7LBIuHHf/pub?gid=0&single=true&output=csv';
 
-let allCards=[], cards=[], current=0, flipped=false, colKeys=null, chapter='all', dir='vi2ko';
+let cards=[], current=0, flipped=false, colKeys=null, dir='vi2ko';
 
 /* ── CSV parser ── */
 function parseCSV(text) {
@@ -146,7 +123,8 @@ function parseCSV(text) {
   }).filter(r => Object.values(r).some(v=>v));
 }
 
-/* ── Column detection ── */
+/* ── Column detection ──
+   Sheet columns: [0] Korean  [1] Vietnamese  [2] Example  */
 function findCol(hs, aliases) {
   for (const a of aliases) { const h=hs.find(k=>k.includes(a)); if(h!==undefined) return h; }
   return '';
@@ -154,11 +132,11 @@ function findCol(hs, aliases) {
 function detectKeys(sample) {
   if (colKeys) return colKeys;
   const hs = Object.keys(sample);
-  console.log('All keys:', hs);
+  console.log('All column keys:', hs);
   colKeys = {
-    korean:  findCol(hs, ['한국', 'korean', 'từ vựng', 'tu vung', 'vocab', 'word'])  || hs[1] || '',
-    vi:      findCol(hs, ['nghĩa', 'nghia', 'vietnamese', 'meaning', 'viet'])         || hs[2] || '',
-    chapter: findCol(hs, ['chương', 'chuong', 'bài', 'bai', 'chapter', 'section'])   || hs[3] || '',
+    korean:  findCol(hs, ['한국', 'korean'])                                      || hs[0] || '',
+    vi:      findCol(hs, ['tiếng việt', 'vietnamese', 'nghĩa', 'nghia', 'viet']) || hs[1] || '',
+    example: findCol(hs, ['example', 'ví dụ', 'vi du'])                          || hs[2] || '',
   };
   console.log('Column map:', colKeys);
   return colKeys;
@@ -166,26 +144,6 @@ function detectKeys(sample) {
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function shuffle(arr) { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-
-/* ── Chapter filter ── */
-function buildChapters() {
-  const k = detectKeys(allCards[0]);
-  const chapters = ['all', ...new Set(allCards.map(c => c[k.chapter]||'').filter(Boolean))];
-  const wrap = document.getElementById('chapterWrap');
-  wrap.style.display = 'flex';
-  wrap.innerHTML = chapters.map(ch =>
-    `<button class="ch-btn${ch===chapter?' active':''}" onclick="setChapter('${esc(ch)}')">${ch==='all'?'Tất cả':esc(ch)}</button>`
-  ).join('');
-}
-function setChapter(ch) {
-  chapter=ch;
-  document.querySelectorAll('.ch-btn').forEach(b =>
-    b.classList.toggle('active', b.textContent.trim()===(ch==='all'?'Tất cả':ch))
-  );
-  const k=colKeys;
-  cards = ch==='all' ? [...allCards] : allCards.filter(c=>(c[k.chapter]||'')===ch);
-  current=0; flipped=false; render();
-}
 
 function doFlip() {
   flipped=!flipped;
@@ -198,18 +156,24 @@ function setDir(d) { dir=d; flipped=false; render(); }
 
 function render() {
   if(!cards.length) { document.getElementById('app').innerHTML='<div class="status">Không có thẻ nào.</div>'; return; }
-  const card=cards[current], k=detectKeys(card);
-  const korean=card[k.korean]||'', vi=card[k.vi]||'', ch=card[k.chapter]||'';
-  const pct=((current+1)/cards.length*100).toFixed(1);
 
-  // Front = what the user sees first; Back = the answer
+  const card=cards[current], k=detectKeys(card);
+  const korean  = card[k.korean]  || '';
+  const vi      = card[k.vi]      || '';
+  const example = card[k.example] || '';
+  const pct     = ((current+1)/cards.length*100).toFixed(1);
+
   const isVi2Ko = dir==='vi2ko';
-  const frontLabel = isVi2Ko ? 'tiếng việt' : '한국어';
-  const backLabel  = isVi2Ko ? '한국어' : 'tiếng việt';
-  const frontMain  = isVi2Ko ? `<p class="meaning-text">${esc(vi)}</p>` : `<p class="back-word">${esc(korean)}</p>`;
-  const backMain   = isVi2Ko
-    ? `<div><div class="face-label">${backLabel}</div><p class="back-word">${esc(korean)}</p><p class="back-word-latin">${esc(vi)}</p></div>`
-    : `<div><div class="face-label">${backLabel}</div><p class="meaning-text">${esc(vi)}</p></div>`;
+  const frontLabel     = isVi2Ko ? 'tiếng việt' : '한국어';
+  const backAnswerLabel = isVi2Ko ? '한국어' : 'tiếng việt';
+
+  const frontMain = isVi2Ko
+    ? `<p class="meaning-text">${esc(vi)}</p>`
+    : `<p class="back-word">${esc(korean)}</p>`;
+
+  const backAnswerMain = isVi2Ko
+    ? `<p class="back-word">${esc(korean)}</p><p class="back-sub">${esc(vi)}</p>`
+    : `<p class="meaning-text">${esc(vi)}</p>`;
 
   document.getElementById('app').innerHTML = `
     <div class="progress-wrap">
@@ -221,15 +185,16 @@ function render() {
         <div class="face face-front">
           <div class="face-label">${frontLabel}</div>
           ${frontMain}
-          ${ch ? `<span class="chapter-tag">${esc(ch)}</span>` : ''}
           <div class="flip-hint">↻ chạm để lật thẻ</div>
         </div>
         <div class="face face-back">
-          ${backMain}
-          <div class="back-example">
-            <span class="back-example-label">chương</span>
-            ${esc(ch)||'—'}
+          <div>
+            <div class="face-label">${backAnswerLabel}</div>
+            ${backAnswerMain}
           </div>
+          ${example
+            ? `<div class="back-example"><span class="back-example-label">ví dụ</span>${esc(example)}</div>`
+            : `<div></div>`}
         </div>
       </div>
     </div>
@@ -254,7 +219,7 @@ function render() {
   document.getElementById('prevBtn').addEventListener('click', ()=>go(-1));
   document.getElementById('nextBtn').addEventListener('click', ()=>go(1));
   document.getElementById('shuffleBtn').addEventListener('click', ()=>{ cards=shuffle(cards); current=0; flipped=false; render(); });
-  document.getElementById('reloadBtn').addEventListener('click', ()=>{ allCards=[]; colKeys=null; init(); });
+  document.getElementById('reloadBtn').addEventListener('click', ()=>{ cards=[]; colKeys=null; init(); });
 }
 
 document.addEventListener('keydown', e => {
@@ -271,13 +236,11 @@ async function init() {
     const res = await fetch(CSV_URL);
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    allCards = parseCSV(text);
-    if(!allCards.length) throw new Error('Sheet loaded nhưng không có dữ liệu.');
+    const raw = parseCSV(text);
+    if(!raw.length) throw new Error('Sheet loaded nhưng không có dữ liệu.');
     colKeys = null;
-    detectKeys(allCards[0]);
-    cards = [...allCards];
-    document.getElementById('subtitle').textContent = `${allCards.length} thẻ · đồng bộ từ Google Sheets ✓`;
-    buildChapters();
+    cards = shuffle(raw); // shuffled by default on every load
+    document.getElementById('subtitle').textContent = `${cards.length} thẻ · đồng bộ từ Google Sheets ✓`;
     render();
   } catch(err) {
     document.getElementById('subtitle').textContent = 'Không thể tải dữ liệu';
